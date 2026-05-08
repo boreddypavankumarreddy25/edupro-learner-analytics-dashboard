@@ -110,8 +110,13 @@ with st.sidebar:
     st.markdown("## 🔍 Filters")
     st.markdown("---")
 
+
+# Check if "Age" exists to prevent KeyError, otherwise use an empty list
+    age_options = sorted(df["Age"].unique()) if "Age" in df.columns else []
+
     age_filter = st.multiselect(
-        "👤 Age", options=age_options,
+        "👤 Age",
+        options=age_options,
         default=age_options
     )
     gender_filter = st.multiselect(
