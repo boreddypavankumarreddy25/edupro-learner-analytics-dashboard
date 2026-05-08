@@ -112,7 +112,7 @@ with st.sidebar:
 
     age_filter = st.multiselect(
         "👤 Age", options=age_options,
-        default=age_options)
+        default=age_options
     )
     gender_filter = st.multiselect(
         "⚥ Gender", options=df["Gender"].unique(),
