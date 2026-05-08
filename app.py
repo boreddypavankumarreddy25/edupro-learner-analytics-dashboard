@@ -111,30 +111,26 @@ with st.sidebar:
     st.markdown("---")
 
 
-# Check if "Age" exists to prevent KeyError, otherwise use an empty list
+# 1. Age Filter
     age_options = sorted(df["Age"].unique()) if "Age" in df.columns else []
+    age_filter = st.multiselect("👤 Age", options=age_options, default=age_options)
 
-    age_filter = st.multiselect(
-        "👤 Age",
-        options=age_options,
-        default=age_options
-    )
-    gender_filter = st.multiselect(
-        "⚥ Gender", options=df["Gender"].unique(),
-        default=df["Gender"].unique()
-    )
-    category_filter = st.multiselect(
-        "📚 Course Category", options=sorted(df["CourseCategory"].unique()),
-        default=sorted(df["CourseCategory"].unique())
-    )
-    level_filter = st.multiselect(
-        "🎯 Course Level", options=df["CourseLevel"].unique(),
-        default=df["CourseLevel"].unique()
-    )
-    year_filter = st.multiselect(
-        "📅 Year", options=sorted(df["Year"].unique()),
-        default=sorted(df["Year"].unique())
-    )
+    # 2. Gender Filter
+    gender_options = df["Gender"].unique() if "Gender" in df.columns else []
+    gender_filter = st.multiselect("🚻 Gender", options=gender_options, default=gender_options)
+
+    # 3. Course Category Filter
+    cat_options = sorted(df["CourseCategory"].unique()) if "CourseCategory" in df.columns else []
+    category_filter = st.multiselect("📚 Course Category", options=cat_options, default=cat_options)
+
+    # 4. Course Level Filter
+    lvl_options = df["CourseLevel"].unique() if "CourseLevel" in df.columns else []
+    level_filter = st.multiselect("🎯 Course Level", options=lvl_options, default=lvl_options)
+
+    # 5. Year Filter
+    year_options = sorted(df["Year"].unique()) if "Year" in df.columns else []
+    year_filter = st.multiselect("📅 Year", options=year_options, default=year_options)
+    
 
     st.markdown("---")
     st.markdown("### 📥 Export Data")
