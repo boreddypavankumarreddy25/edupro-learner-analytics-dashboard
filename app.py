@@ -146,7 +146,7 @@ with st.sidebar:
 # -----------------------------
 # KPIs
 # -----------------------------
-total_enrollments = len(filtered_df)
+total_enrollments = filtered_df["UserID"].nunique()
 active_users = filtered_df["UserID"].nunique()
 total_courses = filtered_df["CourseID"].nunique()
 avg_courses = round(filtered_df.groupby("UserID")["CourseID"].nunique().mean(), 2)
@@ -296,4 +296,3 @@ st.markdown("""
     🎓 EduPro Learner Analytics Dashboard | Built with Streamlit & Plotly
 </div>
 """, unsafe_allow_html=True)
-
