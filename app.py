@@ -18,7 +18,6 @@ st.set_page_config(
 st.markdown("""
 <style>
     .block-container { padding-top: 1.5rem; }
-
     .kpi-card {
         background: linear-gradient(135deg, #1e2130, #2a2d3e);
         border-radius: 12px;
@@ -81,10 +80,22 @@ st.markdown("""
 @st.cache_data
 def load_data():
     xls = pd.ExcelFile("project dashboard.xlsx")
-    users = pd.read_excel(xls, "users").drop_duplicates(subset="UserID")
-    courses = pd.read_excel(xls, "courses").drop_duplicates(subset="CourseID")
+    users        = pd.read_excel(xls, "users").drop_duplicates(subset="UserID")
+    courses      = pd.read_excel(xls, "courses").drop_duplicates(subset="CourseID")
     transactions = pd.read_excel(xls, "transations").drop_duplicates()
-    df = transactions.merge(users, on="UserID").merge(courses, on="CourseID")
+    teachers     = pd.read_excel(xls, "teachers").drop_duplicates(subset="TeacherID")
+
+    # parse date
+    transactions["TransactionDate"] = pd.to_datetime(transactions["TransactionDate"])
+    transactions["Year"]  = transactions["TransactionDate"].dt.year
+    transactions["Month"] = transactions["TransactionDate"].dt.month
+    transactions["MonthName"] = transactions["TransactionDate"].dt.strftime("%b")
+    transactions["YearMonth"] = transactions["TransactionDate"].dt.to_period("M").astype(str)
+
+    df = (transactions
+          .merge(users,    on="UserID")
+          .merge(courses,  on="CourseID")
+          .merge(teachers, on="TeacherID"))
     return df
 
 with st.spinner("Loading data..."):
@@ -100,27 +111,24 @@ with st.sidebar:
     st.markdown("---")
 
     age_filter = st.multiselect(
-        "👤 Age",
-        options=sorted(df["Age"].unique()),
+        "👤 Age", options=sorted(df["Age"].unique()),
         default=sorted(df["Age"].unique())
     )
-
     gender_filter = st.multiselect(
-        "⚥ Gender",
-        options=df["Gender"].unique(),
+        "⚥ Gender", options=df["Gender"].unique(),
         default=df["Gender"].unique()
     )
-
     category_filter = st.multiselect(
-        "📚 Course Category",
-        options=sorted(df["CourseCategory"].unique()),
+        "📚 Course Category", options=sorted(df["CourseCategory"].unique()),
         default=sorted(df["CourseCategory"].unique())
     )
-
     level_filter = st.multiselect(
-        "🎯 Course Level",
-        options=df["CourseLevel"].unique(),
+        "🎯 Course Level", options=df["CourseLevel"].unique(),
         default=df["CourseLevel"].unique()
+    )
+    year_filter = st.multiselect(
+        "📅 Year", options=sorted(df["Year"].unique()),
+        default=sorted(df["Year"].unique())
     )
 
     st.markdown("---")
@@ -130,10 +138,10 @@ filtered_df = df[
     (df["Age"].isin(age_filter)) &
     (df["Gender"].isin(gender_filter)) &
     (df["CourseCategory"].isin(category_filter)) &
-    (df["CourseLevel"].isin(level_filter))
+    (df["CourseLevel"].isin(level_filter)) &
+    (df["Year"].isin(year_filter))
 ]
 
-# Download button
 with st.sidebar:
     csv = filtered_df.to_csv(index=False).encode("utf-8")
     st.download_button(
@@ -146,13 +154,12 @@ with st.sidebar:
 # -----------------------------
 # KPIs
 # -----------------------------
-total_enrollments = filtered_df["UserID"].nunique()
-active_users = filtered_df["UserID"].nunique()
-total_courses = filtered_df["CourseID"].nunique()
-avg_courses = round(filtered_df.groupby("UserID")["CourseID"].nunique().mean(), 2)
-coverage = round((active_users / df["UserID"].nunique()) * 100, 1)
-
-k1, k2, k3, k4, k5 = st.columns(5)
+active_users      = filtered_df["UserID"].nunique()
+total_enrollments = active_users
+total_courses     = filtered_df["CourseID"].nunique()
+avg_courses       = round(filtered_df.groupby("UserID")["CourseID"].nunique().mean(), 2)
+coverage          = round((active_users / df["UserID"].nunique()) * 100, 1)
+platform_engage   = active_users
 
 def kpi_card(col, label, value, icon, color="#4f8ef7"):
     col.markdown(f"""
@@ -162,133 +169,194 @@ def kpi_card(col, label, value, icon, color="#4f8ef7"):
     </div>
     """, unsafe_allow_html=True)
 
-kpi_card(k1, "Total Enrollments", f"{total_enrollments:,}", "📋", "#4f8ef7")
-kpi_card(k2, "Active Users",      f"{active_users:,}",      "👥", "#48bb78")
-kpi_card(k3, "Avg Courses/User",  avg_courses,               "📈", "#ed8936")
-kpi_card(k4, "Total Courses",     total_courses,             "🎓", "#9f7aea")
-kpi_card(k5, "Filter Coverage",   f"{coverage}%",            "🎯", "#f56565")
+k1,k2,k3,k4,k5 = st.columns(5)
+kpi_card(k1, "Platform Engagement", f"{platform_engage:,}", "📊", "#4f8ef7")
+kpi_card(k2, "Active Users",        f"{active_users:,}",    "👥", "#48bb78")
+kpi_card(k3, "Avg Enrollments/User",avg_courses,            "📈", "#ed8936")
+kpi_card(k4, "Total Learners",      f"{active_users:,}",    "🎓", "#9f7aea")
+kpi_card(k5, "Available Courses",   total_courses,          "📚", "#f56565")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# -----------------------------
-# ROW 1 — DEMOGRAPHICS
-# -----------------------------
-st.markdown("<div class='section-title'>👤 Learner Demographics</div>", unsafe_allow_html=True)
-col1, col2 = st.columns(2)
+# =============================================
+# PAGE 1 — OVERVIEW
+# =============================================
+st.markdown("<div class='section-title'>📋 Overview</div>", unsafe_allow_html=True)
 
+col1, col2, col3 = st.columns(3)
+
+# Age group bar
 with col1:
     age_data = (
         filtered_df.groupby("Age")["UserID"]
-        .nunique().reset_index(name="Users")
-        .sort_values("Users", ascending=False)
+        .nunique().reset_index(name="ActiveUsers")
+        .sort_values("ActiveUsers", ascending=True)
     )
-    fig1 = px.bar(age_data, x="Age", y="Users",
-                  color="Users", color_continuous_scale="Blues",
-                  title="👥 Learner Distribution by Age",
-                  text="Users", template="plotly_dark")
+    fig1 = px.bar(age_data, x="ActiveUsers", y="Age", orientation="h",
+                  color="ActiveUsers", color_continuous_scale="Blues",
+                  title="👥 Enrollments by Age Group", text="ActiveUsers",
+                  template="plotly_dark")
     fig1.update_traces(textposition="outside")
-    fig1.update_layout(showlegend=False, title_font_size=16)
+    fig1.update_layout(showlegend=False, title_font_size=15, yaxis_title="Age Group")
     st.plotly_chart(fig1, use_container_width=True)
 
+# Gender donut
 with col2:
     gender_data = (
         filtered_df.groupby("Gender")["UserID"]
         .nunique().reset_index(name="Users")
     )
     fig2 = px.pie(gender_data, names="Gender", values="Users",
-                  title="⚥ Gender Participation Distribution",
-                  hole=0.55, template="plotly_dark",
-                  color_discrete_sequence=["#4f8ef7", "#48bb78", "#ed8936"])
+                  title="⚥ Gender Participation Ratio", hole=0.55,
+                  template="plotly_dark",
+                  color_discrete_sequence=["#4f8ef7","#48bb78"])
     fig2.update_traces(textinfo="percent+label", pull=[0.03]*len(gender_data))
-    fig2.update_layout(title_font_size=16)
+    fig2.update_layout(title_font_size=15)
     st.plotly_chart(fig2, use_container_width=True)
 
-# -----------------------------
-# ROW 2 — COURSE ANALYTICS
-# -----------------------------
-st.markdown("<div class='section-title'>📚 Course Analytics</div>", unsafe_allow_html=True)
-col3, col4 = st.columns(2)
-
+# Enrollment trend over time
 with col3:
-    cat_data = (
-        filtered_df.groupby("CourseCategory")["UserID"]
+    trend_data = (
+        filtered_df.groupby("YearMonth")["UserID"]
         .nunique().reset_index(name="Enrollments")
-        .sort_values("Enrollments", ascending=True)
+        .sort_values("YearMonth")
     )
-    fig3 = px.bar(cat_data, x="Enrollments", y="CourseCategory",
-                  orientation="h", color="Enrollments",
-                  color_continuous_scale="Blues",
-                  title="📊 Course Category Popularity",
-                  text="Enrollments", template="plotly_dark")
-    fig3.update_traces(textposition="outside")
-    fig3.update_layout(showlegend=False, title_font_size=16,
-                       yaxis_title="", xaxis_title="Enrollments")
+    fig3 = px.line(trend_data, x="YearMonth", y="Enrollments",
+                   title="📅 Enrollment Trends Over Time",
+                   markers=True, template="plotly_dark",
+                   color_discrete_sequence=["#4f8ef7"])
+    fig3.update_layout(title_font_size=15,
+                       xaxis_title="Month", yaxis_title="Enrollments")
     st.plotly_chart(fig3, use_container_width=True)
 
+# =============================================
+# PAGE 2 — COURSE PREFERENCES
+# =============================================
+st.markdown("<div class='section-title'>📚 Course Preferences</div>", unsafe_allow_html=True)
+
+col4, col5 = st.columns(2)
+
+# Category by Age Group
 with col4:
-    level_data = (
-        filtered_df.groupby("CourseLevel")["UserID"]
+    cat_age = (
+        filtered_df.groupby(["Age","CourseCategory"])["UserID"]
         .nunique().reset_index(name="Enrollments")
     )
-    fig4 = px.funnel(level_data, x="Enrollments", y="CourseLevel",
-                     title="🎯 Course Level Preference",
-                     template="plotly_dark",
-                     color_discrete_sequence=["#4f8ef7"])
-    fig4.update_layout(title_font_size=16)
+    fig4 = px.bar(cat_age, x="Enrollments", y="Age", color="CourseCategory",
+                  orientation="h", barmode="stack",
+                  title="📊 Category Preference by Age Group",
+                  template="plotly_dark")
+    fig4.update_layout(title_font_size=15, yaxis_title="Age Group",
+                       legend=dict(orientation="h", y=-0.3))
     st.plotly_chart(fig4, use_container_width=True)
 
-# -----------------------------
-# ROW 3 — HEATMAP
-# -----------------------------
-st.markdown("<div class='section-title'>🔥 Enrollment Heatmap</div>", unsafe_allow_html=True)
+# Category by Gender
+with col5:
+    cat_gender = (
+        filtered_df.groupby(["CourseCategory","Gender"])["UserID"]
+        .nunique().reset_index(name="Enrollments")
+    )
+    fig5 = px.bar(cat_gender, x="Enrollments", y="CourseCategory",
+                  color="Gender", orientation="h", barmode="group",
+                  title="📊 Category by Gender",
+                  template="plotly_dark",
+                  color_discrete_sequence=["#4f8ef7","#48bb78"])
+    fig5.update_layout(title_font_size=15, yaxis_title="")
+    st.plotly_chart(fig5, use_container_width=True)
 
-heatmap_data = (
-    filtered_df.groupby(["Age", "CourseCategory"])["UserID"]
+# Heatmap
+st.markdown("<div class='section-title'>🔥 Heatmap — Age vs Course Category</div>", unsafe_allow_html=True)
+heatmap_pivot = (
+    filtered_df.groupby(["Age","CourseCategory"])["UserID"]
     .nunique().reset_index(name="Users")
+    .pivot(index="Age", columns="CourseCategory", values="Users")
+    .fillna(0)
 )
-heatmap_pivot = heatmap_data.pivot(
-    index="Age", columns="CourseCategory", values="Users"
-).fillna(0)
+fig6 = px.imshow(heatmap_pivot, title="🔥 Age vs Course Category",
+                 color_continuous_scale="Blues", template="plotly_dark",
+                 text_auto=True, aspect="auto")
+fig6.update_layout(title_font_size=15)
+st.plotly_chart(fig6, use_container_width=True)
 
-fig5 = px.imshow(
-    heatmap_pivot,
-    title="🔥 Age vs Course Category Heatmap",
-    color_continuous_scale="Blues",
-    template="plotly_dark",
-    text_auto=True,
-    aspect="auto"
-)
-fig5.update_layout(title_font_size=16)
-st.plotly_chart(fig5, use_container_width=True)
+# =============================================
+# PAGE 3 — COURSE LEVEL INSIGHTS
+# =============================================
+st.markdown("<div class='section-title'>🎯 Course Level Insights</div>", unsafe_allow_html=True)
 
-# -----------------------------
+col6, col7, col8 = st.columns(3)
+
+# Level by Age
+with col6:
+    lvl_age = (
+        filtered_df.groupby(["Age","CourseLevel"])["UserID"]
+        .nunique().reset_index(name="Enrollments")
+    )
+    fig7 = px.bar(lvl_age, x="Enrollments", y="Age", color="CourseLevel",
+                  orientation="h", barmode="stack",
+                  title="🎯 Level by Age Group",
+                  template="plotly_dark")
+    fig7.update_layout(title_font_size=15, yaxis_title="Age Group",
+                       legend=dict(orientation="h", y=-0.3))
+    st.plotly_chart(fig7, use_container_width=True)
+
+# Level by Gender
+with col7:
+    lvl_gender = (
+        filtered_df.groupby(["Gender","CourseLevel"])["UserID"]
+        .nunique().reset_index(name="Enrollments")
+    )
+    fig8 = px.bar(lvl_gender, x="Enrollments", y="Gender", color="CourseLevel",
+                  orientation="h", barmode="stack",
+                  title="🎯 Level by Gender",
+                  template="plotly_dark")
+    fig8.update_layout(title_font_size=15, yaxis_title="",
+                       legend=dict(orientation="h", y=-0.3))
+    st.plotly_chart(fig8, use_container_width=True)
+
+# Teacher Performance
+with col8:
+    teacher_data = (
+        filtered_df.groupby("TeacherName")["UserID"]
+        .nunique().reset_index(name="Enrollments")
+        .sort_values("Enrollments", ascending=False)
+        .head(10)
+    )
+    fig9 = px.bar(teacher_data, x="TeacherName", y="Enrollments",
+                  color="Enrollments", color_continuous_scale="Blues",
+                  title="👨‍🏫 Teacher Performance",
+                  text="Enrollments", template="plotly_dark")
+    fig9.update_traces(textposition="outside")
+    fig9.update_layout(showlegend=False, title_font_size=15,
+                       xaxis_tickangle=-30)
+    st.plotly_chart(fig9, use_container_width=True)
+
+# =============================================
 # KEY INSIGHTS
-# -----------------------------
+# =============================================
 st.markdown("<div class='section-title'>📌 Key Insights</div>", unsafe_allow_html=True)
 
-top_age      = age_data.sort_values("Users", ascending=False).iloc[0]["Age"]
-top_age_cnt  = age_data.sort_values("Users", ascending=False).iloc[0]["Users"]
-top_cat      = cat_data.sort_values("Enrollments", ascending=False).iloc[0]["CourseCategory"]
-top_cat_cnt  = cat_data.sort_values("Enrollments", ascending=False).iloc[0]["Enrollments"]
-top_level    = level_data.sort_values("Enrollments", ascending=False).iloc[0]["CourseLevel"]
-top_gender   = gender_data.sort_values("Users", ascending=False).iloc[0]["Gender"]
+age_data2   = filtered_df.groupby("Age")["UserID"].nunique().reset_index(name="U")
+cat_data2   = filtered_df.groupby("CourseCategory")["UserID"].nunique().reset_index(name="U")
+level_data2 = filtered_df.groupby("CourseLevel")["UserID"].nunique().reset_index(name="U")
+top_teacher = teacher_data.iloc[0]["TeacherName"]
+top_teacher_cnt = teacher_data.iloc[0]["Enrollments"]
 
 insights = [
-    f"🏆 Most active age group is <b>{top_age}</b> with <b>{top_age_cnt:,}</b> learners",
-    f"📚 Most popular course category is <b>{top_cat}</b> with <b>{top_cat_cnt:,}</b> enrollments",
-    f"🎯 Most preferred course level is <b>{top_level}</b>",
-    f"👥 Dominant gender group is <b>{top_gender}</b>",
+    f"🏆 Most active age group: <b>{age_data2.sort_values('U',ascending=False).iloc[0]['Age']}</b>",
+    f"📚 Most popular category: <b>{cat_data2.sort_values('U',ascending=False).iloc[0]['CourseCategory']}</b>",
+    f"🎯 Most preferred level: <b>{level_data2.sort_values('U',ascending=False).iloc[0]['CourseLevel']}</b>",
+    f"👨‍🏫 Top teacher: <b>{top_teacher}</b> with <b>{top_teacher_cnt:,}</b> enrollments",
+    f"👥 Male users dominate enrollments (~{round(gender_data[gender_data['Gender']=='Male']['Users'].values[0]/gender_data['Users'].sum()*100)}%)" if 'Male' in gender_data['Gender'].values else "👥 See gender chart for breakdown",
     f"📊 Average courses per user: <b>{avg_courses}</b>",
 ]
 
 i1, i2 = st.columns(2)
-for i, insight in enumerate(insights):
-    col = i1 if i % 2 == 0 else i2
-    col.markdown(f"<div class='insight-card'>{insight}</div>", unsafe_allow_html=True)
+for i, ins in enumerate(insights):
+    (i1 if i%2==0 else i2).markdown(
+        f"<div class='insight-card'>{ins}</div>", unsafe_allow_html=True
+    )
 
-# -----------------------------
 # FOOTER
-# -----------------------------
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("""
 <div style='text-align:center; color:#4a5568; font-size:13px; padding:20px;
