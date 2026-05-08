@@ -135,14 +135,24 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📥 Export Data")
 
-filtered_df = df[
-    (df["Age"].isin(age_filter)) &
-    (df["Gender"].isin(gender_filter)) &
-    (df["CourseCategory"].isin(category_filter)) &
-    (df["CourseLevel"].isin(level_filter)) &
-    (df["Year"].isin(year_filter))
-]
+# Create a copy of the dataframe to filter
+filtered_df = df.copy()
 
+# Apply filters only if the column exists in the current dataframe
+if "Age" in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df["Age"].isin(age_filter)]
+
+if "Gender" in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df["Gender"].isin(gender_filter)]
+
+if "CourseCategory" in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df["CourseCategory"].isin(category_filter)]
+
+if "CourseLevel" in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df["CourseLevel"].isin(level_filter)]
+
+if "Year" in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df["Year"].isin(year_filter)]
 with st.sidebar:
     csv = filtered_df.to_csv(index=False).encode("utf-8")
     st.download_button(
