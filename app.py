@@ -111,8 +111,8 @@ with st.sidebar:
     st.markdown("---")
 
     age_filter = st.multiselect(
-        "👤 Age", options=sorted(df["Age"].unique()),
-        default=sorted(df["Age"].unique())
+        "👤 Age", options=age_options,
+        default=age_options)
     )
     gender_filter = st.multiselect(
         "⚥ Gender", options=df["Gender"].unique(),
