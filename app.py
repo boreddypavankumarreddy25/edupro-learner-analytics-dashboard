@@ -19,7 +19,7 @@ st.markdown(
 def load_data():
 
     # READ EXCEL FILE
-    xls = pd.ExcelFile(r"c:\Users\Boreddy Suma\OneDrive\Documents\project dashboard.xlsx")
+    xls = pd.ExcelFile(project dashboard.xlsx")
 
     # SHEETS
     users = pd.read_excel(xls, "users")
