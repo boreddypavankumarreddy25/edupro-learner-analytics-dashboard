@@ -349,7 +349,7 @@ insights = [
     f"📚 Most popular category: <b>{cat_data2.sort_values('U',ascending=False).iloc[0]['CourseCategory']}</b>",
     f"🎯 Most preferred level: <b>{level_data2.sort_values('U',ascending=False).iloc[0]['CourseLevel']}</b>",
     f"👨‍🏫 Top teacher: <b>{top_teacher}</b> with <b>{top_teacher_cnt:,}</b> enrollments",
-    f"👥 Male users dominate enrollments (~{round(gender_data[gender_data['Gender']=='Male']['Users'].values[0]/gender_data['Users'].sum()*100)}%)" if 'Male' in gender_data['Gender'].values else "👥 See gender chart for breakdown",
+    f"👥 Female users dominate enrollments (~{round(gender_data[gender_data['Gender']=='Female']['Users'].values[0]/gender_data['Users'].sum()*100)}%)" if 'Female' in gender_data['Gender'].values else "👥 See gender chart for breakdown",
     f"📊 Average courses per user: <b>{avg_courses}</b>",
 ]
 
