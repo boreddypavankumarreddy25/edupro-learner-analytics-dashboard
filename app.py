@@ -83,7 +83,7 @@ def load_data():
     users        = pd.read_excel(xls, "users").drop_duplicates(subset="UserID")
     courses      = pd.read_excel(xls, "courses").drop_duplicates(subset="CourseID")
     transactions = pd.read_excel(xls, "transations").drop_duplicates()
-    teachers     = pd.read_excel(xls, "Teachers").drop_duplicates(subset="TeacherID")
+    teachers     = pd.read_excel(xls, "teachers").drop_duplicates(subset="TeacherID")
 
     # parse date
     transactions["TransactionDate"] = pd.to_datetime(transactions["TransactionDate"])
@@ -91,6 +91,9 @@ def load_data():
     transactions["Month"] = transactions["TransactionDate"].dt.month
     transactions["MonthName"] = transactions["TransactionDate"].dt.strftime("%b")
     transactions["YearMonth"] = transactions["TransactionDate"].dt.to_period("M").astype(str)
+
+    # Drop Age/Gender from teachers to avoid column conflicts
+    teachers = teachers.drop(columns=["Age", "Gender"], errors="ignore")
 
     df = (transactions
           .merge(users,    on="UserID")
